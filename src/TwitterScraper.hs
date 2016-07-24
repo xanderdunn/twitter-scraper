@@ -5,21 +5,20 @@ getByteString,
 startDay,
 getStartDay,
 twitterSearchURL,
-scrapeSearchURL
+twitterJSONURL,
+scrapeSearchURL,
+completeFile
 ) where
 
 -- System
 import System.Directory
 import System.FilePath
-import System.IO
-import System.Environment
 import Data.Maybe (fromJust)
-import Control.Applicative
 import qualified Data.Text as T
 
 -- Third Party
 import Text.HTML.Scalpel
-import qualified Text.JSON as JSON
+-- import qualified Text.JSON as JSON
 import Data.Time.Calendar
 import Data.Time.Format
 import qualified Data.Csv as CSV
@@ -32,7 +31,7 @@ twitterSearchURL searchTerm day = "https://twitter.com/search?q=" ++ searchTerm 
 
 -- |The Twitter JSON response URLs for all search results beyond the first page
 twitterJSONURL :: String -> Day -> Integer -> Integer -> String
-twitterJSONURL searchTerm day tweetMin tweetMax = "https://twitter.com/i/search/timeline?vertical=news&q=" ++ searchTerm ++ "%20lang%3Aen%20since%3A" ++ showGregorian day ++ "%20until%3A" ++ showGregorian(addDays 1 day) ++ "&src=typd&include_available_features=1&include_entities=1&max_position=TWEET-" ++ show tweetMin ++ "-" ++ show tweetMax ++ "-BD1UO2FFu9QAAAAAAAAETAAAAAcAAAASAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&reset_error_state=false"
+twitterJSONURL searchTerm day tweetMax tweetMin = "https://twitter.com/i/search/timeline?vertical=news&q=" ++ searchTerm ++ "%20lang%3Aen%20since%3A" ++ showGregorian day ++ "%20until%3A" ++ showGregorian(addDays 1 day) ++ "&src=typd&include_available_features=1&include_entities=1&max_position=TWEET-" ++ show tweetMin ++ "-" ++ show tweetMax ++ "-BD1UO2FFu9QAAAAAAAAETAAAAAcAAAASAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&reset_error_state=false"
 
 type ScrapeReturn = (T.Text, T.Text, T.Text, T.Text, T.Text, T.Text, T.Text)
 
@@ -48,7 +47,7 @@ tweetScraper = tweets
        infos :: Scraper T.Text ScrapeReturn
        infos = do
            author <- attr "data-screen-name" Any
-           id <- attr "data-tweet-id" Any
+           unique <- attr "data-tweet-id" Any
            body <- text $ "div"  @: [hasClass "js-tweet-text-container"]
            counters <- texts $ "span" @: [hasClass "ProfileTweet-actionCountForPresentation"]
            let retweets = head counters
@@ -56,7 +55,7 @@ tweetScraper = tweets
            -- TODO: Fix the location and card_url items
            -- location <- text $ "span" @: [hasClass "Tweet-geo"]
            -- card_url <- attr "data-card-url" ("div"  @: [hasClass "js-macaw-cards-iframe-container"])
-           return (id, author, T.pack "", retweets, likes, T.strip body, T.pack "")
+           return (unique, author, T.pack "", retweets, likes, T.strip body, T.pack "")
 
 -- TODO: Use a lens instead of this ugly, long tuple
 type Tweet = (Int, T.Text, T.Text, Int, Int, T.Text, T.Text, T.Text, T.Text)
@@ -72,7 +71,6 @@ startDay tweets
 
 getStartDay :: ByteString.ByteString -> IO Day
 getStartDay csvByteString = do
-    let csv = csvContents csvByteString
     case csvContents csvByteString of
         Left msg -> error $ "Could not parse CSV with error: " ++ msg
         Right tweets -> return (startDay tweets)
