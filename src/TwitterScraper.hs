@@ -1,5 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
+-- TODO: Doing too much in this file.  Separate into IO, CSV, JSON
+
 module TwitterScraper (
 outputFilePath,
 csvContents,
@@ -10,7 +12,8 @@ twitterSearchURL,
 twitterJSONURL,
 scrapeSearchURL,
 tweetMinMax,
-completeFile
+completeFile,
+scrapeJSONSearchURL
 ) where
 
 -- System
@@ -18,6 +21,7 @@ import System.Directory
 import System.FilePath
 import Data.Maybe (fromJust)
 import qualified Data.Text as T
+import Control.Monad
 
 -- Third Party
 import Text.HTML.Scalpel
@@ -25,9 +29,11 @@ import Data.Time.Calendar
 import Data.Time.Format
 import Data.Csv
 import qualified Data.ByteString.Lazy as ByteString
-import qualified Data.Vector as Vec
-import Control.Lens hiding (element)
-import qualified Control.Applicative (empty)
+import qualified Data.Vector as V
+import Control.Lens hiding (element) -- Consider using microlens or fclabels
+
+-- First Party
+import TweetJSON (scrapeJSONSearchURL)
 
 -- |The Twitter search URL for a given search term and day
 twitterSearchURL :: String -> Day -> String
@@ -54,13 +60,13 @@ instance FromRecord Tweet where
                           v .! 5 <*>
                           v .! 6 <*>
                           v .! 7
-      | otherwise     = Control.Applicative.empty
+      | otherwise     = mzero
 
-tweetMinMax :: Vec.Vector Tweet -> (Int, Int)
+tweetMinMax :: V.Vector Tweet -> (Int, Int)
 tweetMinMax tweets = (minID, maxID)
-    where headTweet = Vec.head tweets
+    where headTweet = V.head tweets
           maxID = view _unique headTweet
-          minID = view _unique (Vec.last tweets)
+          minID = view _unique (V.last tweets)
 
 scrapeSearchURL :: String -> IO (Maybe [Tweet])
 scrapeSearchURL url = scrapeURL url tweetScraper
@@ -92,20 +98,21 @@ tweetScraper = tweets
 
 
 -- |The day on which to start scraping for a given term is the last day already recorded in that file.
-startDay :: Vec.Vector Tweet -> Day
+startDay :: V.Vector Tweet -> Day
 startDay tweets
     | null tweets = fromGregorian 2013 01 01
     | otherwise = day
     where day = fromJust $ parseTimeM True defaultTimeLocale (iso8601DateFormat Nothing) dateString
-          dateText = view _date (Vec.last tweets)
+          dateText = view _date (V.last tweets)
           dateString = T.unpack dateText
 
+-- |This should instead take a Vector 
 getStartDay :: ByteString.ByteString -> IO Day
 getStartDay csvByteString = case csvContents csvByteString of
         Left msg -> error $ "Could not parse CSV with error: " ++ msg
         Right tweets -> return (startDay tweets)
 
-csvContents :: ByteString.ByteString -> Either String (Vec.Vector Tweet)
+csvContents :: ByteString.ByteString -> Either String (V.Vector Tweet)
 csvContents = decode NoHeader
 
 -- Prevent duplicates by checking a set of tweet IDs

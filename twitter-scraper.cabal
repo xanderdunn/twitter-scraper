@@ -12,7 +12,8 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     TwitterScraper
-  build-depends:       base, scalpel, json, time, cassava, bytestring, directory, filepath, vector, system-fileio, text, lens
+  other-modules:       TweetJSON
+  build-depends:       base, scalpel, json, time, cassava, bytestring, directory, filepath, vector, system-fileio, text, lens, wreq, aeson
   hs-source-dirs:      src
   default-language:    Haskell2010
 

@@ -28,4 +28,7 @@ main = do
             print results
             let (tweetMin, tweetMax) = tweetMinMax (Vec.fromList results)
             let jsonURL = twitterJSONURL searchTerm day tweetMax tweetMin
-            print jsonURL
+            scrapedJSON <- scrapeJSONSearchURL jsonURL
+            case scrapedJSON of
+              Nothing -> error "Couldn't scrape Twitter JSON"
+              Just jsonResults -> print jsonResults
