@@ -13,7 +13,8 @@ twitterJSONURL,
 scrapeSearchURL,
 tweetMinMax,
 completeFile,
-scrapeJSONSearchURL
+scrapeJSONSearchURL,
+scrapeTweetJSON
 ) where
 
 -- System
@@ -33,7 +34,7 @@ import qualified Data.Vector as V
 import Control.Lens hiding (element) -- Consider using microlens or fclabels
 
 -- First Party
-import TweetJSON (scrapeJSONSearchURL)
+import TweetJSON (scrapeJSONSearchURL, TweetJSON)
 
 -- |The Twitter search URL for a given search term and day
 twitterSearchURL :: String -> Day -> String
@@ -115,16 +116,14 @@ getStartDay csvByteString = case csvContents csvByteString of
 csvContents :: ByteString.ByteString -> Either String (V.Vector Tweet)
 csvContents = decode NoHeader
 
--- Prevent duplicates by checking a set of tweet IDs
-
--- A given search term is complete when the output CSV file is moved to _complete.csv
+-- |A given search term is complete when the output CSV file is moved to _complete.csv
 completeFile :: FilePath -> IO ()
 completeFile path = renameFile path (dropExtension path ++ "_complete.csv")
 
 outputFilePath :: String -> FilePath -> FilePath
 outputFilePath searchTerm currentDirectory = currentDirectory </> "output" </> searchTerm ++ ".csv"
 
--- Get contents of file as a Lazy ByteString, return empty Lazy ByteString if the file does not exist
+-- |Get contents of file as a Lazy ByteString, return empty Lazy ByteString if the file does not exist
 getByteString :: FilePath -> IO ByteString.ByteString
 getByteString path = do
     fileExists <- doesFileExist path
@@ -132,5 +131,15 @@ getByteString path = do
         then ByteString.readFile path
         else return ByteString.empty
 
+-- Prevent duplicates by checking a set of tweet IDs
 -- Map across a list of companies, where each company has a list of search terms.  Prevent duplicate tweets across all files for a given company
 -- Name the output files tesla.csv, @TeslaMotors.csv, #tesla.csv, etc.
+
+-- TODO: I'd rather not create lenses for this data type twice
+makeLenses ''TweetJSON
+
+scrapeTweetJSON :: TweetJSON -> Maybe [Tweet]
+scrapeTweetJSON json
+    | htmlText == T.pack "" = Just []
+    | otherwise = scrapeStringLike htmlText tweetScraper
+    where htmlText = view _itemsHTML json

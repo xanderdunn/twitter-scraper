@@ -1,5 +1,8 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module TweetJSON (
-scrapeJSONSearchURL
+scrapeJSONSearchURL,
+TweetJSON
 ) where
 
 -- System
@@ -11,7 +14,8 @@ import Network.Wreq
 import Data.Aeson
 import Control.Lens hiding (element) -- Consider using microlens or fclabels
 
-data TweetJSON = TweetJSON {_itemsHTML :: Text} deriving Show
+data TweetJSON = TweetJSON {__itemsHTML :: Text} deriving Show
+makeLenses ''TweetJSON
 
 instance FromJSON TweetJSON where
     parseJSON (Object v) = TweetJSON <$> v .: pack "items_html"

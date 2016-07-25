@@ -10,6 +10,7 @@ import qualified Data.Vector as Vec
 -- First Party
 import TwitterScraper
 
+-- TODO: Clean up this mess
 main :: IO ()
 main = do
     cd <- getCurrentDirectory
@@ -21,14 +22,18 @@ main = do
     let searchTerm = "tesla"
     let searchURL = twitterSearchURL searchTerm day
     print searchURL
-    scraped <- scrapeSearchURL searchURL
-    case scraped of
+    maybeScraped <- scrapeSearchURL searchURL
+    case maybeScraped of
         Nothing -> error "Scraped nothing"
-        Just results -> do
-            print results
-            let (tweetMin, tweetMax) = tweetMinMax (Vec.fromList results)
+        Just scraped -> do
+            print scraped
+            let (tweetMin, tweetMax) = tweetMinMax (Vec.fromList scraped)
             let jsonURL = twitterJSONURL searchTerm day tweetMax tweetMin
-            scrapedJSON <- scrapeJSONSearchURL jsonURL
-            case scrapedJSON of
-              Nothing -> error "Couldn't scrape Twitter JSON"
-              Just jsonResults -> print jsonResults
+            maybeScrapedJSON <- scrapeJSONSearchURL jsonURL
+            case maybeScrapedJSON of
+                Nothing -> error "Couldn't scrape Twitter JSON"
+                Just scrapedJSON -> do
+                    let maybeScrapedResults = scrapeTweetJSON scrapedJSON
+                    case maybeScrapedResults of
+                        Nothing -> error "Couldn't scrape from JSON to Tweet"
+                        Just scrapedResults -> print scrapedResults
