@@ -10,7 +10,7 @@ import qualified Data.Vector as Vec
 -- First Party
 import TwitterScraper
 
--- TODO: Clean up this mess
+-- FIXME: Clean up this mess
 main :: IO ()
 main = do
     cd <- getCurrentDirectory

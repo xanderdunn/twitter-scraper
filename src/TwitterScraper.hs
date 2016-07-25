@@ -131,11 +131,11 @@ getByteString path = do
         then ByteString.readFile path
         else return ByteString.empty
 
--- Prevent duplicates by checking a set of tweet IDs
--- Map across a list of companies, where each company has a list of search terms.  Prevent duplicate tweets across all files for a given company
--- Name the output files tesla.csv, @TeslaMotors.csv, #tesla.csv, etc.
+-- TODO: Prevent duplicates by checking a set of tweet IDs
+-- TODO: Map across a list of companies, where each company has a list of search terms.  Prevent duplicate tweets across all files for a given company
+-- TODO: Name the output files tesla.csv, @TeslaMotors.csv, #tesla.csv, etc.
 
--- TODO: I'd rather not create lenses for this data type twice
+-- FIXME: I'd rather not create lenses for this data type twice
 makeLenses ''TweetJSON
 
 scrapeTweetJSON :: TweetJSON -> Maybe [Tweet]
