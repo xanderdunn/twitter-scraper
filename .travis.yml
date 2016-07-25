@@ -21,3 +21,4 @@ addons:
 
 script:
     - stack --no-terminal --skip-ghc-check build --ghc-options="-Wall -Werror"
+    - stack exec scrape-twitter
