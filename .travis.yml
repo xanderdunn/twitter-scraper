@@ -20,4 +20,4 @@ addons:
     - ghc-7.10.3
 
 script:
-  - stack --no-terminal --skip-ghc-check --ghc-options="-Wall -Werror" build
+  - stack --skip-ghc-check --ghc-options="-Wall -Werror" build
