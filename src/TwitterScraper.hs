@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module TwitterScraper (
 outputFilePath,
 csvContents,
@@ -7,6 +9,7 @@ getStartDay,
 twitterSearchURL,
 twitterJSONURL,
 scrapeSearchURL,
+tweetMinMax,
 completeFile
 ) where
 
@@ -18,47 +21,75 @@ import qualified Data.Text as T
 
 -- Third Party
 import Text.HTML.Scalpel
--- import qualified Text.JSON as JSON
 import Data.Time.Calendar
 import Data.Time.Format
-import qualified Data.Csv as CSV
+import Data.Csv
 import qualified Data.ByteString.Lazy as ByteString
 import qualified Data.Vector as Vec
+import Control.Lens hiding (element)
+import qualified Control.Applicative (empty)
 
 -- |The Twitter search URL for a given search term and day
 twitterSearchURL :: String -> Day -> String
 twitterSearchURL searchTerm day = "https://twitter.com/search?q=" ++ searchTerm ++ "%20lang%3Aen%20since%3A" ++ showGregorian day ++"%20until%3A" ++ showGregorian(addDays 1 day) ++ "&src=typd"
 
 -- |The Twitter JSON response URLs for all search results beyond the first page
-twitterJSONURL :: String -> Day -> Integer -> Integer -> String
+twitterJSONURL :: String -> Day -> Int -> Int -> String
 twitterJSONURL searchTerm day tweetMax tweetMin = "https://twitter.com/i/search/timeline?vertical=news&q=" ++ searchTerm ++ "%20lang%3Aen%20since%3A" ++ showGregorian day ++ "%20until%3A" ++ showGregorian(addDays 1 day) ++ "&src=typd&include_available_features=1&include_entities=1&max_position=TWEET-" ++ show tweetMin ++ "-" ++ show tweetMax ++ "-BD1UO2FFu9QAAAAAAAAETAAAAAcAAAASAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&reset_error_state=false"
 
-type ScrapeReturn = (T.Text, T.Text, T.Text, T.Text, T.Text, T.Text, T.Text)
+data Tweet = Tweet { __unique :: Int, __author :: T.Text, __location :: T.Text, __retweets :: Int, __likes :: Int, __body :: T.Text, __cardURL :: T.Text, __date :: T.Text } deriving (Show)
+makeLenses ''Tweet
 
-scrapeSearchURL :: String -> IO (Maybe [ScrapeReturn])
+instance ToRecord Tweet where
+    toRecord (Tweet uniqueF authorF locationF retweetsF likesF bodyF cardURLF dateF) = record [toField uniqueF, toField authorF, toField locationF, toField retweetsF, toField likesF, toField bodyF, toField cardURLF, toField dateF]
+
+instance FromRecord Tweet where
+    parseRecord v
+      | length v == 8 = Tweet <$>
+                          v .! 0 <*>
+                          v .! 1 <*>
+                          v .! 2 <*>
+                          v .! 3 <*>
+                          v .! 4 <*>
+                          v .! 5 <*>
+                          v .! 6 <*>
+                          v .! 7
+      | otherwise     = Control.Applicative.empty
+
+tweetMinMax :: Vec.Vector Tweet -> (Int, Int)
+tweetMinMax tweets = (minID, maxID)
+    where headTweet = Vec.head tweets
+          maxID = view _unique headTweet
+          minID = view _unique (Vec.last tweets)
+
+scrapeSearchURL :: String -> IO (Maybe [Tweet])
 scrapeSearchURL url = scrapeURL url tweetScraper
 
-tweetScraper :: Scraper T.Text [ScrapeReturn]
+textToInt :: T.Text -> Int
+textToInt t
+    | T.length t == 0 = 0
+    | otherwise = read (T.unpack t) :: Int
+
+-- | Scraper defined for the Scalpel library to scrape the HTML
+tweetScraper :: Scraper T.Text [Tweet]
 tweetScraper = tweets
    where
-       tweets :: Scraper T.Text [ScrapeReturn]
+       tweets :: Scraper T.Text [Tweet]
        tweets = chroots ("div" @: [hasClass "js-stream-tweet"]) infos
 
-       infos :: Scraper T.Text ScrapeReturn
+       infos :: Scraper T.Text Tweet
        infos = do
-           author <- attr "data-screen-name" Any
-           unique <- attr "data-tweet-id" Any
-           body <- text $ "div"  @: [hasClass "js-tweet-text-container"]
+           authorT <- attr "data-screen-name" Any
+           uniqueT <- attr "data-tweet-id" Any
+           bodyT <- text $ "div"  @: [hasClass "js-tweet-text-container"]
            counters <- texts $ "span" @: [hasClass "ProfileTweet-actionCountForPresentation"]
-           let retweets = head counters
-           let likes = counters !! 2
+           let retweetsT = head counters
+           let likesT = counters !! 2
            -- TODO: Fix the location and card_url items
            -- location <- text $ "span" @: [hasClass "Tweet-geo"]
            -- card_url <- attr "data-card-url" ("div"  @: [hasClass "js-macaw-cards-iframe-container"])
-           return (unique, author, T.pack "", retweets, likes, T.strip body, T.pack "")
+           return Tweet {__unique = textToInt uniqueT, __author = authorT, __location = T.pack "", __retweets = textToInt retweetsT, __likes = textToInt likesT, __body = T.strip bodyT, __cardURL = T.pack "", __date = T.pack ""}
 
--- TODO: Use a lens instead of this ugly, long tuple
-type Tweet = (Int, T.Text, T.Text, Int, Int, T.Text, T.Text, T.Text, T.Text)
 
 -- |The day on which to start scraping for a given term is the last day already recorded in that file.
 startDay :: Vec.Vector Tweet -> Day
@@ -66,17 +97,16 @@ startDay tweets
     | null tweets = fromGregorian 2013 01 01
     | otherwise = day
     where day = fromJust $ parseTimeM True defaultTimeLocale (iso8601DateFormat Nothing) dateString
-          (_, _, _, _, _, _, _, _, dateText) = Vec.last tweets
+          dateText = view _date (Vec.last tweets)
           dateString = T.unpack dateText
 
 getStartDay :: ByteString.ByteString -> IO Day
-getStartDay csvByteString = do
-    case csvContents csvByteString of
+getStartDay csvByteString = case csvContents csvByteString of
         Left msg -> error $ "Could not parse CSV with error: " ++ msg
         Right tweets -> return (startDay tweets)
 
 csvContents :: ByteString.ByteString -> Either String (Vec.Vector Tweet)
-csvContents = CSV.decode CSV.NoHeader
+csvContents = decode NoHeader
 
 -- Prevent duplicates by checking a set of tweet IDs
 

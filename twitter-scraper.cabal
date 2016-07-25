@@ -12,12 +12,12 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     TwitterScraper
-  build-depends:       base, scalpel, json, time, cassava, bytestring, directory, filepath, vector, system-fileio, text
+  build-depends:       base, scalpel, json, time, cassava, bytestring, directory, filepath, vector, system-fileio, text, lens
   hs-source-dirs:      src
   default-language:    Haskell2010
 
 executable scrape-twitter
   main-is:           Main.hs
-  build-depends:     base, twitter-scraper, directory, filepath
+  build-depends:     base, twitter-scraper, directory, filepath, vector
   default-language:  Haskell2010
   hs-source-dirs:    app
