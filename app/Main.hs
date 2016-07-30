@@ -19,5 +19,5 @@ main = do
     let searchTerm = "tesla"
     -- TODO: Map across [startDay..(fromGregorian 2014 01 01)]
     day <- getStartDay csvByteString
-    allTweets <- allTweetsOnDay searchTerm V.empty day
-    saveTweets ofp searchTerm allTweets day
+    oneDayTweets <- allTweetsOnDay searchTerm V.empty day
+    saveTweets ofp searchTerm oneDayTweets day

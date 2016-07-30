@@ -25,7 +25,10 @@ import Control.Monad
 -- Third Party
 import Text.HTML.Scalpel
 import Data.Time.Calendar
+import Data.Time.Clock.POSIX
 import Data.Time.Format
+import Data.Time
+import Data.Time.Calendar.WeekDate
 import Data.Csv
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Vector as V
@@ -75,6 +78,11 @@ textToInt t
     | T.length t == 0 = 0
     | otherwise = read (T.unpack t) :: Int
 
+textToInteger :: T.Text -> Integer
+textToInteger t
+    | T.length t == 0 = 0
+    | otherwise = read (T.unpack t) :: Integer
+
 -- | Scraper defined for the Scalpel library to scrape the HTML
 tweetScraper :: Scraper T.Text [Tweet]
 tweetScraper = tweets
@@ -102,9 +110,8 @@ startDay :: V.Vector Tweet -> Day
 startDay tweets
     | null tweets = fromGregorian 2013 01 01
     | otherwise = day
-    where day = fromJust $ parseTimeM True defaultTimeLocale (iso8601DateFormat Nothing) dateString
-          dateText = view _date (V.last tweets)
-          dateString = T.unpack dateText
+    where day = utctDay $ posixSecondsToUTCTime $ fromInteger milliseconds / 1000
+          milliseconds = textToInteger $ view _date (V.last tweets)
 
 -- |This should instead take a Vector 
 getStartDay :: LBS.ByteString -> IO Day
