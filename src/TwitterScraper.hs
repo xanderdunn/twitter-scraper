@@ -18,7 +18,6 @@ saveTweets
 -- System
 import System.Directory
 import System.FilePath
-import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import Control.Monad
 
@@ -26,7 +25,6 @@ import Control.Monad
 import Text.HTML.Scalpel
 import Data.Time.Calendar
 import Data.Time.Clock.POSIX
-import Data.Time.Format
 import Data.Time
 import Data.Csv
 import qualified Data.ByteString.Lazy as LBS
