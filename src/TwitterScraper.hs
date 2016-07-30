@@ -28,7 +28,6 @@ import Data.Time.Calendar
 import Data.Time.Clock.POSIX
 import Data.Time.Format
 import Data.Time
-import Data.Time.Calendar.WeekDate
 import Data.Csv
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Vector as V
