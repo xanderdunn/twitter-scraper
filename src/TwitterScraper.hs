@@ -117,7 +117,7 @@ csvContents = decode NoHeader
 
 saveTweets :: FilePath -> String -> V.Vector Tweet -> Day -> IO ()
 saveTweets path searchTerm tweets day = do
-    writeByteString path (encode (V.toList tweets))
+    LBS.appendFile path (encode (V.toList tweets))
     print $ show (V.length tweets) ++ " " ++ searchTerm ++ " tweets collected on " ++ showGregorian day
 
 -- |A given search term is complete when the output CSV file is moved to _complete.csv
@@ -134,13 +134,6 @@ getByteString path = do
     if fileExists
         then LBS.readFile path
         else return LBS.empty
-
-writeByteString :: FilePath -> LBS.ByteString -> IO ()
-writeByteString path string = do
-    fileExists <- doesFileExist path
-    if fileExists
-       then LBS.appendFile path string
-       else LBS.writeFile path string
 
 -- TODO: Prevent duplicates by checking a set of tweet IDs
 -- TODO: Map across a list of companies, where each company has a list of search terms.  Prevent duplicate tweets across all files for a given company
