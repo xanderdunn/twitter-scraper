@@ -90,13 +90,14 @@ tweetScraper = tweets
            authorT <- attr "data-screen-name" Any
            uniqueT <- attr "data-tweet-id" Any
            bodyT <- text $ "div"  @: [hasClass "js-tweet-text-container"]
+           date <- attr "data-time-ms" ("span"  @: [hasClass "_timestamp"])
            counters <- texts $ "span" @: [hasClass "ProfileTweet-actionCountForPresentation"]
            let retweetsT = head counters
            let likesT = counters !! 2
            -- TODO: Fix the location and card_url items
            -- location <- text $ "span" @: [hasClass "Tweet-geo"]
            -- card_url <- attr "data-card-url" ("div"  @: [hasClass "js-macaw-cards-iframe-container"])
-           return Tweet {__unique = textToInt uniqueT, __author = authorT, __location = T.pack "", __retweets = textToInt retweetsT, __likes = textToInt likesT, __body = T.strip bodyT, __cardURL = T.pack "", __date = T.pack ""}
+           return Tweet {__unique = textToInt uniqueT, __author = authorT, __location = T.pack "", __retweets = textToInt retweetsT, __likes = textToInt likesT, __body = T.strip bodyT, __cardURL = T.pack "", __date = date}
 
 
 -- |The day on which to start scraping for a given term is the last day already recorded in that file.
@@ -146,7 +147,7 @@ scrapeTweetJSON json
     where htmlText = view _itemsHTML json
 
 -- TODO: Clean this up
--- |Take a list of tweets and make the next JSON call
+-- |Take a list of tweets and recursively gather JSON tweet results until they're all in
 allJSONTweetsOnDay :: String -> Day -> V.Vector Tweet -> IO (V.Vector Tweet)
 allJSONTweetsOnDay searchTerm day tweets = do
     let (tweetMin, tweetMax) = tweetMinMax tweets
@@ -167,6 +168,7 @@ allJSONTweetsOnDay searchTerm day tweets = do
                            nextResults <- allJSONTweetsOnDay searchTerm day combinedResults
                            return $ vectorResults V.++ nextResults
 
+-- |Gather first page and all JSON tweet results
 allTweetsOnDay :: String -> Day -> V.Vector Tweet -> IO (V.Vector Tweet)
 allTweetsOnDay searchTerm day tweets
     | V.length tweets == 0 = do
