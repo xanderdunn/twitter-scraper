@@ -10,12 +10,9 @@ startDay,
 getStartDay,
 twitterSearchURL,
 twitterJSONURL,
-scrapeSearchURL,
-tweetMinMax,
 completeFile,
-scrapeJSONSearchURL,
-scrapeTweetJSON,
-allTweetsOnDay
+allTweetsOnDay,
+saveTweets
 ) where
 
 -- System
@@ -30,7 +27,7 @@ import Text.HTML.Scalpel
 import Data.Time.Calendar
 import Data.Time.Format
 import Data.Csv
-import qualified Data.ByteString.Lazy as ByteString
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Vector as V
 import Control.Lens hiding (element) -- Consider using microlens or fclabels
 
@@ -94,7 +91,7 @@ tweetScraper = tweets
            counters <- texts $ "span" @: [hasClass "ProfileTweet-actionCountForPresentation"]
            let retweetsT = head counters
            let likesT = counters !! 2
-           -- TODO: Fix the location and card_url items
+           -- TODO: Fix the location and card_url items https://github.com/fimad/scalpel/issues/39
            -- location <- text $ "span" @: [hasClass "Tweet-geo"]
            -- card_url <- attr "data-card-url" ("div"  @: [hasClass "js-macaw-cards-iframe-container"])
            return Tweet {__unique = textToInt uniqueT, __author = authorT, __location = T.pack "", __retweets = textToInt retweetsT, __likes = textToInt likesT, __body = T.strip bodyT, __cardURL = T.pack "", __date = date}
@@ -110,13 +107,18 @@ startDay tweets
           dateString = T.unpack dateText
 
 -- |This should instead take a Vector 
-getStartDay :: ByteString.ByteString -> IO Day
+getStartDay :: LBS.ByteString -> IO Day
 getStartDay csvByteString = case csvContents csvByteString of
         Left msg -> error $ "Could not parse CSV with error: " ++ msg
         Right tweets -> return (startDay tweets)
 
-csvContents :: ByteString.ByteString -> Either String (V.Vector Tweet)
+csvContents :: LBS.ByteString -> Either String (V.Vector Tweet)
 csvContents = decode NoHeader
+
+saveTweets :: FilePath -> String -> V.Vector Tweet -> Day -> IO ()
+saveTweets path searchTerm tweets day = do
+    writeByteString path (encode (V.toList tweets))
+    print $ show (V.length tweets) ++ " " ++ searchTerm ++ " tweets collected on " ++ showGregorian day
 
 -- |A given search term is complete when the output CSV file is moved to _complete.csv
 completeFile :: FilePath -> IO ()
@@ -126,12 +128,19 @@ outputFilePath :: String -> FilePath -> FilePath
 outputFilePath searchTerm currentDirectory = currentDirectory </> "output" </> searchTerm ++ ".csv"
 
 -- |Get contents of file as a Lazy ByteString, return empty Lazy ByteString if the file does not exist
-getByteString :: FilePath -> IO ByteString.ByteString
+getByteString :: FilePath -> IO LBS.ByteString
 getByteString path = do
     fileExists <- doesFileExist path
     if fileExists
-        then ByteString.readFile path
-        else return ByteString.empty
+        then LBS.readFile path
+        else return LBS.empty
+
+writeByteString :: FilePath -> LBS.ByteString -> IO ()
+writeByteString path string = do
+    fileExists <- doesFileExist path
+    if fileExists
+       then LBS.appendFile path string
+       else LBS.writeFile path string
 
 -- TODO: Prevent duplicates by checking a set of tweet IDs
 -- TODO: Map across a list of companies, where each company has a list of search terms.  Prevent duplicate tweets across all files for a given company
@@ -169,13 +178,13 @@ allJSONTweetsOnDay searchTerm day tweets = do
                            return $ vectorResults V.++ nextResults
 
 -- |Gather first page and all JSON tweet results
-allTweetsOnDay :: String -> Day -> V.Vector Tweet -> IO (V.Vector Tweet)
-allTweetsOnDay searchTerm day tweets
+allTweetsOnDay :: String -> V.Vector Tweet -> Day -> IO (V.Vector Tweet)
+allTweetsOnDay searchTerm tweets day
     | V.length tweets == 0 = do
         let searchURL = twitterSearchURL searchTerm day
         print searchURL
         maybeScraped <- scrapeSearchURL searchURL
         case maybeScraped of
             Nothing -> error "Scraped nothing"
-            Just scraped -> allTweetsOnDay searchTerm day (V.fromList scraped)
+            Just scraped -> allTweetsOnDay searchTerm (V.fromList scraped) day
     | otherwise = allJSONTweetsOnDay searchTerm day tweets
