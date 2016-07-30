@@ -14,7 +14,8 @@ scrapeSearchURL,
 tweetMinMax,
 completeFile,
 scrapeJSONSearchURL,
-scrapeTweetJSON
+scrapeTweetJSON,
+allTweetsOnDay
 ) where
 
 -- System
@@ -140,6 +141,39 @@ makeLenses ''TweetJSON
 
 scrapeTweetJSON :: TweetJSON -> Maybe [Tweet]
 scrapeTweetJSON json
-    | htmlText == T.pack "" = Just []
+    | T.strip htmlText == T.pack "" = Just []
     | otherwise = scrapeStringLike htmlText tweetScraper
     where htmlText = view _itemsHTML json
+
+-- TODO: Clean this up
+-- |Take a list of tweets and make the next JSON call
+allJSONTweetsOnDay :: String -> Day -> V.Vector Tweet -> IO (V.Vector Tweet)
+allJSONTweetsOnDay searchTerm day tweets = do
+    let (tweetMin, tweetMax) = tweetMinMax tweets
+    let jsonURL = twitterJSONURL searchTerm day tweetMax tweetMin
+    maybeScrapedJSON <- scrapeJSONSearchURL jsonURL
+    case maybeScrapedJSON of
+        Nothing -> error "Couldn't scrape Twitter JSON"
+        Just scrapedJSON -> do
+            let maybeScrapedResults = scrapeTweetJSON scrapedJSON
+            case maybeScrapedResults of
+                Nothing -> error "Couldn't scrape from JSON to Tweet"
+                Just scrapedResults ->
+                    if null scrapedResults
+                       then return V.empty
+                       else do
+                           let vectorResults = V.fromList scrapedResults
+                           let combinedResults = tweets V.++ vectorResults
+                           nextResults <- allJSONTweetsOnDay searchTerm day combinedResults
+                           return $ vectorResults V.++ nextResults
+
+allTweetsOnDay :: String -> Day -> V.Vector Tweet -> IO (V.Vector Tweet)
+allTweetsOnDay searchTerm day tweets
+    | V.length tweets == 0 = do
+        let searchURL = twitterSearchURL searchTerm day
+        print searchURL
+        maybeScraped <- scrapeSearchURL searchURL
+        case maybeScraped of
+            Nothing -> error "Scraped nothing"
+            Just scraped -> allTweetsOnDay searchTerm day (V.fromList scraped)
+    | otherwise = allJSONTweetsOnDay searchTerm day tweets
