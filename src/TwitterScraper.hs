@@ -53,7 +53,7 @@ instance ToRecord Tweet where
 
 instance FromRecord Tweet where
     parseRecord v
-      | length v == 8 = Tweet <$>
+      | length v == 7 = Tweet <$>
                           v .! 0 <*>
                           v .! 1 <*>
                           v .! 2 <*>
