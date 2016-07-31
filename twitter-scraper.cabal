@@ -17,8 +17,15 @@ library
   hs-source-dirs:      src
   default-language:    Haskell2010
 
+test-suite test-scrape-twitter
+  type:                exitcode-stdio-1.0
+  main-is:             Main.hs
+  hs-source-dirs:      test
+  build-depends:       base, twitter-scraper, HUnit, test-framework, test-framework-hunit, QuickCheck, directory, filepath
+  default-language:    Haskell2010
+
 executable scrape-twitter
-  main-is:           Main.hs
-  build-depends:     base, twitter-scraper, directory, filepath, vector
-  default-language:  Haskell2010
-  hs-source-dirs:    app
+  main-is:             Main.hs
+  build-depends:       base, twitter-scraper, directory, filepath, vector
+  default-language:    Haskell2010
+  hs-source-dirs:      app

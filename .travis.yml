@@ -23,4 +23,4 @@ addons:
 script:
     - hlint ./src
     - stack --no-terminal --skip-ghc-check build --ghc-options="-Wall -Werror"
-    - stack exec scrape-twitter
+    - stack test
