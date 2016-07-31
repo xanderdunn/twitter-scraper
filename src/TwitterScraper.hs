@@ -76,6 +76,7 @@ scrapeSearchURL url = scrapeURL url tweetScraper
 readSafeInt :: T.Text -> Int
 readSafeInt t
     | null string = 0
+    | last string == 'K' = round ((read (init string):: Double) * 1000) :: Int
     | otherwise = case reads string of
                     [(x, "")] -> x
                     _ -> error $ "Attempted to convert \"" ++ string ++ "\" to an Int, but can't be done."
