@@ -45,11 +45,11 @@ twitterSearchURL searchTerm day = "https://twitter.com/search?q=" ++ searchTerm 
 twitterJSONURL :: String -> Day -> Integer -> Integer -> String
 twitterJSONURL searchTerm day tweetMax tweetMin = "https://twitter.com/i/search/timeline?vertical=news&q=" ++ searchTerm ++ "%20lang%3Aen%20since%3A" ++ showGregorian day ++ "%20until%3A" ++ showGregorian(addDays 1 day) ++ "&src=typd&include_available_features=1&include_entities=1&max_position=TWEET-" ++ show tweetMin ++ "-" ++ show tweetMax ++ "-BD1UO2FFu9QAAAAAAAAETAAAAAcAAAASAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&reset_error_state=false"
 
-data Tweet = Tweet { __unique :: Integer, __author :: T.Text, __location :: T.Text, __retweets :: Int, __likes :: Int, __body :: T.Text, __cardURL :: T.Text, __date :: T.Text } deriving (Show)
+data Tweet = Tweet { __unique :: Integer, __author :: T.Text, __location :: T.Text, __retweets :: Int, __likes :: Int, __body :: T.Text, __date :: T.Text } deriving (Show)
 makeLenses ''Tweet
 
 instance ToRecord Tweet where
-    toRecord (Tweet uniqueF authorF locationF retweetsF likesF bodyF cardURLF dateF) = record [toField uniqueF, toField authorF, toField locationF, toField retweetsF, toField likesF, toField bodyF, toField cardURLF, toField dateF]
+    toRecord (Tweet uniqueF authorF locationF retweetsF likesF bodyF dateF) = record [toField uniqueF, toField authorF, toField locationF, toField retweetsF, toField likesF, toField bodyF, toField dateF]
 
 instance FromRecord Tweet where
     parseRecord v
@@ -60,8 +60,7 @@ instance FromRecord Tweet where
                           v .! 3 <*>
                           v .! 4 <*>
                           v .! 5 <*>
-                          v .! 6 <*>
-                          v .! 7
+                          v .! 6
       | otherwise     = mzero
 
 tweetMinMax :: V.Vector Tweet -> (Integer, Integer)
@@ -97,7 +96,6 @@ tweetScraper = tweets
        tweets :: Scraper T.Text [Tweet]
        tweets = chroots ("div" @: [hasClass "js-stream-tweet"]) tweet
 
-       -- card_url <- attr "data-card-url" ("div"  @: [hasClass "js-macaw-cards-iframe-container"])
        tweet :: Scraper T.Text Tweet
        tweet = infosWithLocation <|> infos
 
@@ -111,7 +109,7 @@ tweetScraper = tweets
            let retweetsT = head counters
            let likesT = counters !! 2
            location <- text $ "span" @: [hasClass "Tweet-geo"]
-           return Tweet {__unique = textToInteger uniqueT, __author = authorT, __location = T.strip location, __retweets = readSafeInt retweetsT, __likes = readSafeInt likesT, __body = T.strip bodyT, __cardURL = T.pack "", __date = date}
+           return Tweet {__unique = textToInteger uniqueT, __author = authorT, __location = T.strip location, __retweets = readSafeInt retweetsT, __likes = readSafeInt likesT, __body = T.strip bodyT, __date = date}
 
        infos :: Scraper T.Text Tweet
        infos = do
@@ -122,7 +120,7 @@ tweetScraper = tweets
            counters <- texts $ "span" @: [hasClass "ProfileTweet-actionCountForPresentation"]
            let retweetsT = head counters
            let likesT = counters !! 2
-           return Tweet {__unique = textToInteger uniqueT, __author = authorT, __location = T.pack "", __retweets = readSafeInt retweetsT, __likes = readSafeInt likesT, __body = T.strip bodyT, __cardURL = T.pack "", __date = date}
+           return Tweet {__unique = textToInteger uniqueT, __author = authorT, __location = T.pack "", __retweets = readSafeInt retweetsT, __likes = readSafeInt likesT, __body = T.strip bodyT, __date = date}
 
 
 -- |The day on which to start scraping for a given term is the last day already recorded in that file.
