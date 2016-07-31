@@ -16,6 +16,7 @@ main = do
     let searchTerm = "tesla"
     -- TODO: Map across a list of companies, where each company has a list of search terms.  Prevent duplicate tweets across all files for a given company
     -- TODO: Check for existing _complete.csv and skip
-    day <- getStartDay csvByteString
-    saveDayTweets searchTerm ofp day
-    -- saveYearTweets searchTerm ofp day
+    existingTweets <- getExistingTweets csvByteString
+    let (day, uniques) = getStartValues existingTweets
+    print $ show (length existingTweets) ++ " tweets already collected"
+    print $ show (length uniques) ++ " unique IDs already collected"

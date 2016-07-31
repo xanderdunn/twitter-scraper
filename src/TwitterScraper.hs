@@ -4,15 +4,15 @@
 
 module TwitterScraper (
 outputFilePath,
-csvContents,
 getByteString,
 startDay,
-getStartDay,
+getStartValues,
 twitterSearchURL,
 twitterJSONURL,
 saveDayTweets,
 saveYearTweets,
-completeFile
+completeFile,
+getExistingTweets
 ) where
 
 -- System
@@ -20,6 +20,7 @@ import System.Directory
 import System.FilePath
 import qualified Data.Text as T
 import Control.Monad
+import qualified Data.Set as Set
 
 -- Third Party
 import Text.HTML.Scalpel
@@ -110,20 +111,34 @@ startDay tweets
     where day = utctDay $ posixSecondsToUTCTime $ fromInteger milliseconds / 1000
           milliseconds = textToInteger $ view _date (V.last tweets)
 
--- |This should instead take a Vector 
-getStartDay :: LBS.ByteString -> IO Day
-getStartDay csvByteString = case csvContents csvByteString of
+getExistingTweets :: LBS.ByteString -> IO (V.Vector Tweet)
+getExistingTweets csvByteString = case csvContents csvByteString of
         Left msg -> error $ "Could not parse CSV with error: " ++ msg
-        Right tweets -> return (startDay tweets)
+        Right tweets -> return tweets
+
+-- |Start day and all existing unique IDs
+getStartValues :: V.Vector Tweet -> (Day, Set.Set Int)
+getStartValues tweets = (startDay tweets, uniques)
+    where uniques = Set.fromList $ map (view _unique) (V.toList tweets)
 
 csvContents :: LBS.ByteString -> Either String (V.Vector Tweet)
 csvContents = decode NoHeader
 
-saveTweets :: FilePath -> String -> V.Vector Tweet -> Day -> IO ()
-saveTweets path searchTerm tweets day = do
-    -- TODO: Prevent duplicates by checking a set of tweet IDs
-    LBS.appendFile path (encode (V.toList tweets))
-    print $ show (V.length tweets) ++ " " ++ showGregorian day ++ " " ++ searchTerm ++ " tweets saved to " ++ path
+-- |Save a V.Vector of Tweet objects to CSV
+saveTweets :: FilePath -> String -> Set.Set Int -> V.Vector Tweet -> Day -> IO ()
+saveTweets path searchTerm existingIDs tweets day = do
+    let newTweets = uniqueTweets existingIDs tweets
+    LBS.appendFile path (encode (V.toList newTweets))
+    print $ show (V.length newTweets) ++ " " ++ showGregorian day ++ " " ++ searchTerm ++ " tweets saved to " ++ path
+
+-- TODO: This can be made more elegant and efficient
+-- |Given a Set of already saved unique Tweet IDs and new Tweet objects, return a Vector of Tweet objects that are not in the Set of unique IDs
+uniqueTweets :: Set.Set Int -> V.Vector Tweet -> V.Vector Tweet
+uniqueTweets existingIDs newTweets
+    | V.length newTweets == 0 = V.empty
+    | otherwise = currentTweet V.++ uniqueTweets existingIDs xs
+        where (x, xs) = (V.head newTweets, V.tail newTweets)
+              currentTweet = if view _unique x `Set.member` existingIDs then V.empty else V.fromList [x]
 
 -- |A given search term is complete when the output CSV file is moved to _complete.csv
 completeFile :: FilePath -> IO ()
@@ -140,6 +155,7 @@ getByteString path = do
         then LBS.readFile path
         else return LBS.empty
 
+-- |Parse JSON into a list of Tweet objects
 scrapeTweetJSON :: TweetJSON -> Maybe [Tweet]
 scrapeTweetJSON json
     | T.strip htmlText == T.pack "" = Just []
@@ -181,10 +197,11 @@ allTweetsOnDay searchTerm tweets day
     | otherwise = allJSONTweetsOnDay searchTerm day tweets
 
 -- |Get a day of tweets and save them to CSV
-saveDayTweets :: String -> FilePath -> Day -> IO ()
-saveDayTweets searchTerm outputPath day = do
+saveDayTweets :: String -> FilePath -> Set.Set Int -> Day -> IO ()
+saveDayTweets searchTerm outputPath uniqueIDs day = do
     oneDayTweets <- allTweetsOnDay searchTerm V.empty day
-    saveTweets outputPath searchTerm oneDayTweets day
+    saveTweets outputPath searchTerm uniqueIDs oneDayTweets day
 
-saveYearTweets :: String -> FilePath -> Day -> IO ()
-saveYearTweets searchTerm outputPath day = mapM_ (saveDayTweets searchTerm outputPath) [day..(fromGregorian 2014 01 01)]
+-- TODO: Use an accumulator for the uniqueIDs to add to it the newly collected Tweets at runtime
+saveYearTweets :: String -> FilePath -> Set.Set Int -> Day -> IO ()
+saveYearTweets searchTerm outputPath uniqueIDs day = mapM_ (saveDayTweets searchTerm outputPath uniqueIDs) [day..(fromGregorian 2014 01 01)]
