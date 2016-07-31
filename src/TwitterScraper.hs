@@ -16,23 +16,23 @@ getExistingTweets
 ) where
 
 -- System
+import Control.Applicative
+import Control.Monad
+import Data.Char
+import qualified Data.Text as T
+import qualified Data.Set as Set
 import System.Directory
 import System.FilePath
-import qualified Data.Text as T
-import Control.Monad
-import qualified Data.Set as Set
-import Data.Char
-import Control.Applicative
 
 -- Third Party
-import Text.HTML.Scalpel
-import Data.Time.Calendar
-import Data.Time.Clock.POSIX
-import Data.Time
-import Data.Csv
-import qualified Data.ByteString.Lazy as LBS
-import qualified Data.Vector as V
+import Control.Exception.Extra
 import Control.Lens hiding (element) -- Consider using microlens or fclabels
+import qualified Data.ByteString.Lazy as LBS
+import Data.Csv
+import Data.Time
+import Data.Time.Clock.POSIX
+import qualified Data.Vector as V
+import Text.HTML.Scalpel
 
 -- First Party
 import TweetJSON (TweetJSON, scrapeJSONSearchURL, _itemsHTML)
@@ -174,7 +174,7 @@ allJSONTweetsOnDay :: String -> Day -> V.Vector Tweet -> IO (V.Vector Tweet)
 allJSONTweetsOnDay searchTerm day tweets = do
     let (tweetMin, tweetMax) = tweetMinMax tweets
     let jsonURL = twitterJSONURL searchTerm day tweetMax tweetMin
-    maybeScrapedJSON <- scrapeJSONSearchURL jsonURL
+    maybeScrapedJSON <- retry 3 (scrapeJSONSearchURL jsonURL)
     case maybeScrapedJSON of
         Nothing -> error "Couldn't scrape Twitter JSON"
         Just scrapedJSON -> do

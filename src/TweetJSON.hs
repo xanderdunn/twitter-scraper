@@ -7,13 +7,13 @@ _itemsHTML
 ) where
 
 -- System
-import Data.Text
 import Control.Monad
+import Data.Text
 
 -- Third Party
-import Network.Wreq
-import Data.Aeson
 import Control.Lens hiding (element) -- Consider using microlens or fclabels
+import Data.Aeson
+import Network.Wreq
 
 data TweetJSON = TweetJSON {__itemsHTML :: Text} deriving Show
 makeLenses ''TweetJSON
