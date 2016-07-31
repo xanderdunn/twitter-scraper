@@ -22,6 +22,7 @@ import qualified Data.Text as T
 import Control.Monad
 import qualified Data.Set as Set
 import Data.Char
+import Control.Applicative
 
 -- Third Party
 import Text.HTML.Scalpel
@@ -94,7 +95,23 @@ tweetScraper :: Scraper T.Text [Tweet]
 tweetScraper = tweets
    where
        tweets :: Scraper T.Text [Tweet]
-       tweets = chroots ("div" @: [hasClass "js-stream-tweet"]) infos
+       tweets = chroots ("div" @: [hasClass "js-stream-tweet"]) tweet
+
+       -- card_url <- attr "data-card-url" ("div"  @: [hasClass "js-macaw-cards-iframe-container"])
+       tweet :: Scraper T.Text Tweet
+       tweet = infosWithLocation <|> infos
+
+       infosWithLocation :: Scraper T.Text Tweet
+       infosWithLocation = do
+           authorT <- attr "data-screen-name" Any
+           uniqueT <- attr "data-tweet-id" Any
+           bodyT <- text $ "div"  @: [hasClass "js-tweet-text-container"]
+           date <- attr "data-time-ms" ("span"  @: [hasClass "_timestamp"])
+           counters <- texts $ "span" @: [hasClass "ProfileTweet-actionCountForPresentation"]
+           let retweetsT = head counters
+           let likesT = counters !! 2
+           location <- text $ "span" @: [hasClass "Tweet-geo"]
+           return Tweet {__unique = textToInteger uniqueT, __author = authorT, __location = T.strip location, __retweets = readSafeInt retweetsT, __likes = readSafeInt likesT, __body = T.strip bodyT, __cardURL = T.pack "", __date = date}
 
        infos :: Scraper T.Text Tweet
        infos = do
@@ -105,9 +122,6 @@ tweetScraper = tweets
            counters <- texts $ "span" @: [hasClass "ProfileTweet-actionCountForPresentation"]
            let retweetsT = head counters
            let likesT = counters !! 2
-           -- TODO: Fix the location and card_url items https://github.com/fimad/scalpel/issues/39
-           -- location <- text $ "span" @: [hasClass "Tweet-geo"]
-           -- card_url <- attr "data-card-url" ("div"  @: [hasClass "js-macaw-cards-iframe-container"])
            return Tweet {__unique = textToInteger uniqueT, __author = authorT, __location = T.pack "", __retweets = readSafeInt retweetsT, __likes = readSafeInt likesT, __body = T.strip bodyT, __cardURL = T.pack "", __date = date}
 
 
@@ -201,7 +215,10 @@ allTweetsOnDay searchTerm tweets day
         maybeScraped <- scrapeSearchURL searchURL
         case maybeScraped of
             Nothing -> error "Scraped nothing"
-            Just scraped -> allTweetsOnDay searchTerm (V.fromList scraped) day
+            Just scraped -> do
+                jsonTweets <- allTweetsOnDay searchTerm scrapedVector day
+                return $ scrapedVector  V.++ jsonTweets
+                where scrapedVector = V.fromList scraped
     | otherwise = allJSONTweetsOnDay searchTerm day tweets
 
 -- |Get a day of tweets and save them to CSV
