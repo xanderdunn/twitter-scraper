@@ -23,4 +23,11 @@ addons:
 script:
     - hlint ./src
     - stack --no-terminal --skip-ghc-check build --ghc-options="-Wall -Werror"
-    - stack test
+    - stack test --coverage
+    - stack haddock
+
+after_script:
+    - stack install codecov-haskell
+    - codecov-haskell
+    - stack install argon
+    - argon src

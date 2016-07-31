@@ -6,3 +6,6 @@ This is an efficient Twitter search results scraper.  It will scrape tweet data 
 ## Build and Run
 - `stack build`
 - `stack exec scrape-twitter`
+
+## Quality
+- Travis CI builds haddock documentation, runs unit tests, creates test coverage percentage, prints cyclomatic complexity, and fails build if ghc or hlint product any warnings

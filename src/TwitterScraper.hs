@@ -21,6 +21,7 @@ import System.FilePath
 import qualified Data.Text as T
 import Control.Monad
 import qualified Data.Set as Set
+import Data.Char
 
 -- Third Party
 import Text.HTML.Scalpel
@@ -40,10 +41,10 @@ twitterSearchURL :: String -> Day -> String
 twitterSearchURL searchTerm day = "https://twitter.com/search?q=" ++ searchTerm ++ "%20lang%3Aen%20since%3A" ++ showGregorian day ++"%20until%3A" ++ showGregorian(addDays 1 day) ++ "&src=typd"
 
 -- |The Twitter JSON response URLs for all search results beyond the first page
-twitterJSONURL :: String -> Day -> Int -> Int -> String
+twitterJSONURL :: String -> Day -> Integer -> Integer -> String
 twitterJSONURL searchTerm day tweetMax tweetMin = "https://twitter.com/i/search/timeline?vertical=news&q=" ++ searchTerm ++ "%20lang%3Aen%20since%3A" ++ showGregorian day ++ "%20until%3A" ++ showGregorian(addDays 1 day) ++ "&src=typd&include_available_features=1&include_entities=1&max_position=TWEET-" ++ show tweetMin ++ "-" ++ show tweetMax ++ "-BD1UO2FFu9QAAAAAAAAETAAAAAcAAAASAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&reset_error_state=false"
 
-data Tweet = Tweet { __unique :: Int, __author :: T.Text, __location :: T.Text, __retweets :: Int, __likes :: Int, __body :: T.Text, __cardURL :: T.Text, __date :: T.Text } deriving (Show)
+data Tweet = Tweet { __unique :: Integer, __author :: T.Text, __location :: T.Text, __retweets :: Int, __likes :: Int, __body :: T.Text, __cardURL :: T.Text, __date :: T.Text } deriving (Show)
 makeLenses ''Tweet
 
 instance ToRecord Tweet where
@@ -62,7 +63,7 @@ instance FromRecord Tweet where
                           v .! 7
       | otherwise     = mzero
 
-tweetMinMax :: V.Vector Tweet -> (Int, Int)
+tweetMinMax :: V.Vector Tweet -> (Integer, Integer)
 tweetMinMax tweets = (minID, maxID)
     where headTweet = V.head tweets
           maxID = view _unique headTweet
@@ -71,15 +72,21 @@ tweetMinMax tweets = (minID, maxID)
 scrapeSearchURL :: String -> IO (Maybe [Tweet])
 scrapeSearchURL url = scrapeURL url tweetScraper
 
-textToInt :: T.Text -> Int
-textToInt t
-    | T.length t == 0 = 0
-    | otherwise = read (T.unpack t) :: Int
+-- TODO: Surely these can be generalized rather than duplication for Int, Integer?
+readSafeInt :: T.Text -> Int
+readSafeInt t
+    | null string = 0
+    | otherwise = case reads string of
+                    [(x, "")] -> x
+                    _ -> error $ "Attempted to convert \"" ++ string ++ "\" to an Int, but can't be done."
+    where string = T.unpack t
 
 textToInteger :: T.Text -> Integer
 textToInteger t
-    | T.length t == 0 = 0
-    | otherwise = read (T.unpack t) :: Integer
+    | all isDigit string = read string :: Integer
+    | null string = 0
+    | otherwise = error $ "Attempted to convert " ++ string ++ " to an Int, but can't be done."
+    where string = T.unpack t
 
 -- | Scraper defined for the Scalpel library to scrape the HTML
 tweetScraper :: Scraper T.Text [Tweet]
@@ -100,7 +107,7 @@ tweetScraper = tweets
            -- TODO: Fix the location and card_url items https://github.com/fimad/scalpel/issues/39
            -- location <- text $ "span" @: [hasClass "Tweet-geo"]
            -- card_url <- attr "data-card-url" ("div"  @: [hasClass "js-macaw-cards-iframe-container"])
-           return Tweet {__unique = textToInt uniqueT, __author = authorT, __location = T.pack "", __retweets = textToInt retweetsT, __likes = textToInt likesT, __body = T.strip bodyT, __cardURL = T.pack "", __date = date}
+           return Tweet {__unique = textToInteger uniqueT, __author = authorT, __location = T.pack "", __retweets = readSafeInt retweetsT, __likes = readSafeInt likesT, __body = T.strip bodyT, __cardURL = T.pack "", __date = date}
 
 
 -- |The day on which to start scraping for a given term is the last day already recorded in that file.
@@ -117,7 +124,7 @@ getExistingTweets csvByteString = case csvContents csvByteString of
         Right tweets -> return tweets
 
 -- |Start day and all existing unique IDs
-getStartValues :: V.Vector Tweet -> (Day, Set.Set Int)
+getStartValues :: V.Vector Tweet -> (Day, Set.Set Integer)
 getStartValues tweets = (startDay tweets, uniques)
     where uniques = Set.fromList $ map (view _unique) (V.toList tweets)
 
@@ -125,7 +132,7 @@ csvContents :: LBS.ByteString -> Either String (V.Vector Tweet)
 csvContents = decode NoHeader
 
 -- |Save a V.Vector of Tweet objects to CSV
-saveTweets :: FilePath -> String -> Set.Set Int -> V.Vector Tweet -> Day -> IO ()
+saveTweets :: FilePath -> String -> Set.Set Integer -> V.Vector Tweet -> Day -> IO ()
 saveTweets path searchTerm existingIDs tweets day = do
     let newTweets = uniqueTweets existingIDs tweets
     LBS.appendFile path (encode (V.toList newTweets))
@@ -133,7 +140,7 @@ saveTweets path searchTerm existingIDs tweets day = do
 
 -- TODO: This can be made more elegant and efficient
 -- |Given a Set of already saved unique Tweet IDs and new Tweet objects, return a Vector of Tweet objects that are not in the Set of unique IDs
-uniqueTweets :: Set.Set Int -> V.Vector Tweet -> V.Vector Tweet
+uniqueTweets :: Set.Set Integer -> V.Vector Tweet -> V.Vector Tweet
 uniqueTweets existingIDs newTweets
     | V.length newTweets == 0 = V.empty
     | otherwise = currentTweet V.++ uniqueTweets existingIDs xs
@@ -197,11 +204,11 @@ allTweetsOnDay searchTerm tweets day
     | otherwise = allJSONTweetsOnDay searchTerm day tweets
 
 -- |Get a day of tweets and save them to CSV
-saveDayTweets :: String -> FilePath -> Set.Set Int -> Day -> IO ()
+saveDayTweets :: String -> FilePath -> Set.Set Integer -> Day -> IO ()
 saveDayTweets searchTerm outputPath uniqueIDs day = do
     oneDayTweets <- allTweetsOnDay searchTerm V.empty day
     saveTweets outputPath searchTerm uniqueIDs oneDayTweets day
 
 -- TODO: Use an accumulator for the uniqueIDs to add to it the newly collected Tweets at runtime
-saveYearTweets :: String -> FilePath -> Set.Set Int -> Day -> IO ()
+saveYearTweets :: String -> FilePath -> Set.Set Integer -> Day -> IO ()
 saveYearTweets searchTerm outputPath uniqueIDs day = mapM_ (saveDayTweets searchTerm outputPath uniqueIDs) [day..(fromGregorian 2014 01 01)]
