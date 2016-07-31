@@ -94,33 +94,19 @@ tweetScraper :: Scraper T.Text [Tweet]
 tweetScraper = tweets
    where
        tweets :: Scraper T.Text [Tweet]
-       tweets = chroots ("div" @: [hasClass "js-stream-tweet"]) tweet
+       tweets = chroots ("div" @: [hasClass "js-stream-tweet"]) infos
 
-       tweet :: Scraper T.Text Tweet
-       tweet = infosWithLocation <|> infos
-
-       infosWithLocation :: Scraper T.Text Tweet
-       infosWithLocation = do
-           authorT <- attr "data-screen-name" Any
-           uniqueT <- attr "data-tweet-id" Any
-           bodyT <- text $ "div"  @: [hasClass "js-tweet-text-container"]
-           date <- attr "data-time-ms" ("span"  @: [hasClass "_timestamp"])
-           counters <- texts $ "span" @: [hasClass "ProfileTweet-actionCountForPresentation"]
-           let retweetsT = head counters
-           let likesT = counters !! 2
-           location <- text $ "span" @: [hasClass "Tweet-geo"]
-           return Tweet {__unique = textToInteger uniqueT, __author = authorT, __location = T.strip location, __retweets = readSafeInt retweetsT, __likes = readSafeInt likesT, __body = T.strip bodyT, __date = date}
-
-       infos :: Scraper T.Text Tweet
+       infos:: Scraper T.Text Tweet
        infos = do
-           authorT <- attr "data-screen-name" Any
            uniqueT <- attr "data-tweet-id" Any
-           bodyT <- text $ "div"  @: [hasClass "js-tweet-text-container"]
+           authorT <- attr "data-screen-name" Any
            date <- attr "data-time-ms" ("span"  @: [hasClass "_timestamp"])
+           location <- text ("span" @: [hasClass "Tweet-geo"]) <|> attr "nothing" Any
+           bodyT <- text $ "div"  @: [hasClass "js-tweet-text-container"]
            counters <- texts $ "span" @: [hasClass "ProfileTweet-actionCountForPresentation"]
            let retweetsT = head counters
            let likesT = counters !! 2
-           return Tweet {__unique = textToInteger uniqueT, __author = authorT, __location = T.pack "", __retweets = readSafeInt retweetsT, __likes = readSafeInt likesT, __body = T.strip bodyT, __date = date}
+           return Tweet {__unique = textToInteger uniqueT, __author = authorT, __location = T.strip location, __retweets = readSafeInt retweetsT, __likes = readSafeInt likesT, __body = T.strip bodyT, __date = date}
 
 
 -- |The day on which to start scraping for a given term is the last day already recorded in that file.
