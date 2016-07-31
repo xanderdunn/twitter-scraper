@@ -24,10 +24,10 @@ script:
     - hlint ./src
     - stack --no-terminal --skip-ghc-check build --ghc-options="-Wall -Werror"
     - stack test --coverage
-    - stack haddock
+    - stack haddock twitter-scraper
 
 after_script:
-    - stack install codecov-haskell
-    - codecov-haskell
+    - stack install hpc-coveralls
+    - hpc-coveralls test-scrape-twitter
     - stack install argon
-    - argon src
+    - argon --min 2 src
