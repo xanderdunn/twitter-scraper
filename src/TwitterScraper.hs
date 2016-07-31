@@ -10,9 +10,9 @@ startDay,
 getStartDay,
 twitterSearchURL,
 twitterJSONURL,
-completeFile,
-allTweetsOnDay,
-saveTweets
+saveDayTweets,
+saveYearTweets,
+completeFile
 ) where
 
 -- System
@@ -32,7 +32,7 @@ import qualified Data.Vector as V
 import Control.Lens hiding (element) -- Consider using microlens or fclabels
 
 -- First Party
-import TweetJSON (scrapeJSONSearchURL, TweetJSON)
+import TweetJSON (TweetJSON, scrapeJSONSearchURL, _itemsHTML)
 
 -- |The Twitter search URL for a given search term and day
 twitterSearchURL :: String -> Day -> String
@@ -121,8 +121,9 @@ csvContents = decode NoHeader
 
 saveTweets :: FilePath -> String -> V.Vector Tweet -> Day -> IO ()
 saveTweets path searchTerm tweets day = do
+    -- TODO: Prevent duplicates by checking a set of tweet IDs
     LBS.appendFile path (encode (V.toList tweets))
-    print $ show (V.length tweets) ++ " " ++ searchTerm ++ " tweets collected on " ++ showGregorian day
+    print $ show (V.length tweets) ++ " " ++ showGregorian day ++ " " ++ searchTerm ++ " tweets saved to " ++ path
 
 -- |A given search term is complete when the output CSV file is moved to _complete.csv
 completeFile :: FilePath -> IO ()
@@ -139,13 +140,6 @@ getByteString path = do
         then LBS.readFile path
         else return LBS.empty
 
--- TODO: Prevent duplicates by checking a set of tweet IDs
--- TODO: Map across a list of companies, where each company has a list of search terms.  Prevent duplicate tweets across all files for a given company
--- TODO: Name the output files tesla.csv, @TeslaMotors.csv, #tesla.csv, etc.
-
--- FIXME: I'd rather not create lenses for this data type twice
-makeLenses ''TweetJSON
-
 scrapeTweetJSON :: TweetJSON -> Maybe [Tweet]
 scrapeTweetJSON json
     | T.strip htmlText == T.pack "" = Just []
@@ -153,7 +147,7 @@ scrapeTweetJSON json
     where htmlText = view _itemsHTML json
 
 -- TODO: Clean this up
--- |Take a list of tweets and recursively gather JSON tweet results until they're all in
+-- |Take a list of tweets and recursively gather JSON tweet results until all results have been collected
 allJSONTweetsOnDay :: String -> Day -> V.Vector Tweet -> IO (V.Vector Tweet)
 allJSONTweetsOnDay searchTerm day tweets = do
     let (tweetMin, tweetMax) = tweetMinMax tweets
@@ -185,3 +179,12 @@ allTweetsOnDay searchTerm tweets day
             Nothing -> error "Scraped nothing"
             Just scraped -> allTweetsOnDay searchTerm (V.fromList scraped) day
     | otherwise = allJSONTweetsOnDay searchTerm day tweets
+
+-- |Get a day of tweets and save them to CSV
+saveDayTweets :: String -> FilePath -> Day -> IO ()
+saveDayTweets searchTerm outputPath day = do
+    oneDayTweets <- allTweetsOnDay searchTerm V.empty day
+    saveTweets outputPath searchTerm oneDayTweets day
+
+saveYearTweets :: String -> FilePath -> Day -> IO ()
+saveYearTweets searchTerm outputPath day = mapM_ (saveDayTweets searchTerm outputPath) [day..(fromGregorian 2014 01 01)]

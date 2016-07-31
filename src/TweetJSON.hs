@@ -2,7 +2,8 @@
 
 module TweetJSON (
 scrapeJSONSearchURL,
-TweetJSON
+TweetJSON,
+_itemsHTML
 ) where
 
 -- System

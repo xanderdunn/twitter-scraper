@@ -4,9 +4,6 @@ module Main where
 import System.Directory
 import System.FilePath
 
--- Third Party
-import qualified Data.Vector as V
-
 -- First Party
 import TwitterScraper
 
@@ -17,7 +14,8 @@ main = do
     let ofp = outputFilePath "tesla" cd
     csvByteString <- getByteString ofp
     let searchTerm = "tesla"
-    -- TODO: Map across [startDay..(fromGregorian 2014 01 01)]
+    -- TODO: Map across a list of companies, where each company has a list of search terms.  Prevent duplicate tweets across all files for a given company
+    -- TODO: Check for existing _complete.csv and skip
     day <- getStartDay csvByteString
-    oneDayTweets <- allTweetsOnDay searchTerm V.empty day
-    saveTweets ofp searchTerm oneDayTweets day
+    saveDayTweets searchTerm ofp day
+    -- saveYearTweets searchTerm ofp day
