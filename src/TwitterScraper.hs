@@ -213,5 +213,5 @@ saveDayTweets searchTerm outputPath uniqueIDs day = do
 -- |Save a full year of tweets to file and at the end rename the output file to *_complete.csv
 saveYearTweets :: String -> FilePath -> Set.Set Integer -> Day -> IO ()
 saveYearTweets searchTerm outputPath uniqueIDs day = do
-    mapM_ (saveDayTweets searchTerm outputPath uniqueIDs) [day..(fromGregorian 2014 01 01)]
+    mapM_ (saveDayTweets searchTerm outputPath uniqueIDs) [day..(fromGregorian 2013 12 31)]
     completeFile outputPath
