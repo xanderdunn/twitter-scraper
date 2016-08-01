@@ -134,11 +134,11 @@ csvToTweets :: LBS.ByteString -> Either String (V.Vector Tweet)
 csvToTweets = decode NoHeader
 
 -- |Save a V.Vector of Tweet objects to CSV
-saveTweets :: FilePath -> String -> Set.Set Integer -> V.Vector Tweet -> Day -> IO ()
-saveTweets path searchTerm existingIDs tweets day = do
+saveTweets :: FilePath -> Set.Set Integer -> V.Vector Tweet -> Day -> IO ()
+saveTweets path existingIDs tweets day = do
     let newTweets = uniqueTweets existingIDs tweets
     LBS.appendFile path (encode (V.toList newTweets))
-    putStrLn $ show (V.length newTweets) ++ " " ++ showGregorian day ++ " " ++ searchTerm ++ " tweets saved"
+    putStrLn $ showGregorian day ++ " had tweets: " ++ show (V.length newTweets)
 
 -- TODO: This can be made more elegant and efficient
 -- |Given a Set of already saved unique Tweet IDs and new Tweet objects, return a Vector of Tweet objects that are not in the Set of unique IDs
@@ -215,7 +215,7 @@ allTweetsOnDay searchTerm day = do
 saveDayTweets :: String -> FilePath -> Set.Set Integer -> Day -> IO ()
 saveDayTweets searchTerm outputPath uniqueIDs day = do
     oneDayTweets <- allTweetsOnDay searchTerm day
-    saveTweets outputPath searchTerm uniqueIDs oneDayTweets day
+    saveTweets outputPath uniqueIDs oneDayTweets day
 
 -- |Save a full year of tweets in the given directory and at the end rename the output file to *_complete.csv.  Skips days and tweets already saved in the corresponding output file.
 saveYearTweets :: FilePath -> String -> IO ()
