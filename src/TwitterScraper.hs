@@ -11,7 +11,6 @@ twitterSearchURL,
 twitterJSONURL,
 saveDayTweets,
 saveYearTweets,
-completeFile,
 getExistingTweets
 ) where
 
@@ -211,6 +210,8 @@ saveDayTweets searchTerm outputPath uniqueIDs day = do
     oneDayTweets <- allTweetsOnDay searchTerm V.empty day
     saveTweets outputPath searchTerm uniqueIDs oneDayTweets day
 
--- TODO: Use an accumulator for the uniqueIDs to add to it the newly collected Tweets at runtime
+-- |Save a full year of tweets to file and at the end rename the output file to *_complete.csv
 saveYearTweets :: String -> FilePath -> Set.Set Integer -> Day -> IO ()
-saveYearTweets searchTerm outputPath uniqueIDs day = mapM_ (saveDayTweets searchTerm outputPath uniqueIDs) [day..(fromGregorian 2014 01 01)]
+saveYearTweets searchTerm outputPath uniqueIDs day = do
+    mapM_ (saveDayTweets searchTerm outputPath uniqueIDs) [day..(fromGregorian 2014 01 01)]
+    completeFile outputPath
