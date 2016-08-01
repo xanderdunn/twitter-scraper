@@ -138,7 +138,7 @@ saveTweets :: FilePath -> String -> Set.Set Integer -> V.Vector Tweet -> Day -> 
 saveTweets path searchTerm existingIDs tweets day = do
     let newTweets = uniqueTweets existingIDs tweets
     LBS.appendFile path (encode (V.toList newTweets))
-    print $ show (V.length newTweets) ++ " " ++ showGregorian day ++ " " ++ searchTerm ++ " tweets saved"
+    putStrLn $ show (V.length newTweets) ++ " " ++ showGregorian day ++ " " ++ searchTerm ++ " tweets saved"
 
 -- TODO: This can be made more elegant and efficient
 -- |Given a Set of already saved unique Tweet IDs and new Tweet objects, return a Vector of Tweet objects that are not in the Set of unique IDs
@@ -223,9 +223,9 @@ saveYearTweets outputDir searchTerm = do
     searchTermsExistingTweets <- allExistingTweets outputDir
     let uniqueIDs = uniqueTweetIDs searchTermsExistingTweets
     let outputPath = outputDir </> (searchTerm ++ ".csv")
-    print $ "Scraping " ++ searchTerm ++ "to " ++ outputPath
-    print $ show (length searchTermsExistingTweets) ++ " tweets already collected"
-    print $ show (length uniqueIDs) ++ " unique IDs already collected"
+    putStrLn $ "\nScraping \"" ++ searchTerm ++ "\" to " ++ outputPath
+    putStrLn $ show (length searchTermsExistingTweets) ++ " tweets already collected"
+    putStrLn $ show (length uniqueIDs) ++ " unique IDs already collected"
     csvByteString <- getByteString outputPath
     existingTweets <- getExistingTweets csvByteString
     let day = startDay existingTweets
@@ -234,6 +234,7 @@ saveYearTweets outputDir searchTerm = do
         -- TODO: Accumulate the uniqueIDs across mappings
         mapM_ (saveDayTweets searchTerm outputPath uniqueIDs) [day..(fromGregorian 2013 12 31)]
         completeFile outputPath
+        putStrLn $ "Finished scraping " ++ searchTerm
 
 -- |Return a Vector of all Tweet objects already saved to all .csv files in the given directory
 allExistingTweets :: FilePath -> IO (V.Vector Tweet)
