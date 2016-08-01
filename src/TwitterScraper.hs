@@ -42,7 +42,6 @@ import Company
 
 -- |The Twitter search URL for a given search term and day
 twitterSearchURL :: String -> Day -> String
--- TODO: Replace any spaces in the searchTerm with "%20"
 twitterSearchURL searchTerm day = "https://twitter.com/search?q=\"" ++ escapedSearchTerm ++ "\"%20lang%3Aen%20since%3A" ++ showGregorian day ++"%20until%3A" ++ showGregorian(addDays 1 day) ++ "&src=typd"
     where escapedSearchTerm = replace " " "%20" searchTerm
 
