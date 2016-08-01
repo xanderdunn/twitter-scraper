@@ -10,14 +10,7 @@ import TwitterScraper
 main :: IO ()
 main = do
     cd <- getCurrentDirectory
-    createDirectoryIfMissing True (cd </> "output/")
-    let searchTerm = "tesla"
-    let ofp = outputFilePath searchTerm cd
-    csvByteString <- getByteString ofp
-    -- TODO: Map across a list of companies, where each company has a list of search terms.  Prevent duplicate tweets across all files for a given company
-    -- TODO: Check for existing _complete.csv and skip
-    existingTweets <- getExistingTweets csvByteString
-    let (day, uniques) = getStartValues existingTweets
-    print $ show (length existingTweets) ++ " tweets already collected"
-    print $ show (length uniques) ++ " unique IDs already collected"
-    saveYearTweets searchTerm ofp uniques day
+    let companiesPath = cd </> "output/" </> "companies.csv"
+    csvBytes <- getByteString companiesPath
+    companies <- getExistingCompanies csvBytes
+    mapM_ saveCompanyTweets companies

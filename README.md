@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.org/xanderdunn/twitter-scraper.svg?branch=master)](https://travis-ci.org/xanderdunn/twitter-scraper)
 
 # Twitter Search Scraping
-This is an efficient Twitter search results scraper.  It will scrape tweet data for a given search term across a span of time.  Data is output to ./output/ in .csv files.  The scraper will check for any previously collected data to prevent duplicate stored records and repeated effort.
+This is an efficient Twitter search results scraper.  It will scrape tweet data for companies across the year 2013.  Data is output to `./output/<TICKER SYMBOL OF COMPANY>/<SEARCH TERM>.csv`.  The scraper will check for any previously collected data to prevent duplicate stored records and repeated effort.
 
 ## Build and Run
 - `stack build`
