@@ -13,5 +13,6 @@ main = do
     let ofp = outputFilePath searchTerm cd
     csvByteString <- getByteString ofp
     existingTweets <- getExistingTweets csvByteString
-    let (day, uniques) = getStartValues existingTweets
+    let day = startDay existingTweets
+    let uniques = uniqueTweetIDs existingTweets
     saveDayTweets searchTerm ofp uniques day

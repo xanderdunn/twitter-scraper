@@ -6,14 +6,14 @@ module TwitterScraper (
 outputFilePath,
 getByteString,
 startDay,
-getStartValues,
 twitterSearchURL,
 twitterJSONURL,
 saveDayTweets,
 saveYearTweets,
 getExistingTweets,
 saveCompanyTweets,
-getExistingCompanies
+getExistingCompanies,
+uniqueTweetIDs
 ) where
 
 -- System
@@ -126,11 +126,6 @@ getExistingTweets csvByteString = case csvToTweets csvByteString of
         Left msg -> error $ "Could not parse CSV with error: " ++ msg
         Right tweets -> return tweets
 
--- |Start day and all existing unique IDs
-getStartValues :: V.Vector Tweet -> (Day, Set.Set Integer)
-getStartValues tweets = (startDay tweets, uniques)
-    where uniques = Set.fromList $ map (view _unique) (V.toList tweets)
-
 -- |Return a set of all unique tweet IDs in the given Vector of Tweet objects
 uniqueTweetIDs :: V.Vector Tweet -> Set.Set Integer
 uniqueTweetIDs tweets = Set.fromList $ map (view _unique) (V.toList tweets)
@@ -143,7 +138,7 @@ saveTweets :: FilePath -> String -> Set.Set Integer -> V.Vector Tweet -> Day -> 
 saveTweets path searchTerm existingIDs tweets day = do
     let newTweets = uniqueTweets existingIDs tweets
     LBS.appendFile path (encode (V.toList newTweets))
-    print $ show (V.length newTweets) ++ " " ++ showGregorian day ++ " " ++ searchTerm ++ " tweets saved to " ++ path
+    print $ show (V.length newTweets) ++ " " ++ showGregorian day ++ " " ++ searchTerm ++ " tweets saved"
 
 -- TODO: This can be made more elegant and efficient
 -- |Given a Set of already saved unique Tweet IDs and new Tweet objects, return a Vector of Tweet objects that are not in the Set of unique IDs
@@ -205,7 +200,6 @@ allJSONTweetsOnDay searchTerm day tweets = do
 allTweetsOnDay :: String -> Day -> IO (V.Vector Tweet)
 allTweetsOnDay searchTerm day = do
     let searchURL = twitterSearchURL searchTerm day
-    print searchURL
     maybeScraped <- scrapeSearchURL searchURL
     case maybeScraped of
         Nothing -> error "Scraped nothing"
@@ -224,9 +218,14 @@ saveDayTweets searchTerm outputPath uniqueIDs day = do
     saveTweets outputPath searchTerm uniqueIDs oneDayTweets day
 
 -- |Save a full year of tweets in the given directory and at the end rename the output file to *_complete.csv.  Skips days and tweets already saved in the corresponding output file.
-saveYearTweets :: FilePath -> Set.Set Integer -> String -> IO ()
-saveYearTweets outputDir uniqueIDs searchTerm = do
+saveYearTweets :: FilePath -> String -> IO ()
+saveYearTweets outputDir searchTerm = do
+    searchTermsExistingTweets <- allExistingTweets outputDir
+    let uniqueIDs = uniqueTweetIDs searchTermsExistingTweets
     let outputPath = outputDir </> (searchTerm ++ ".csv")
+    print $ "Scraping " ++ searchTerm ++ "to " ++ outputPath
+    print $ show (length searchTermsExistingTweets) ++ " tweets already collected"
+    print $ show (length uniqueIDs) ++ " unique IDs already collected"
     csvByteString <- getByteString outputPath
     existingTweets <- getExistingTweets csvByteString
     let day = startDay existingTweets
@@ -236,6 +235,15 @@ saveYearTweets outputDir uniqueIDs searchTerm = do
         mapM_ (saveDayTweets searchTerm outputPath uniqueIDs) [day..(fromGregorian 2013 12 31)]
         completeFile outputPath
 
+-- |Return a Vector of all Tweet objects already saved to all .csv files in the given directory
+allExistingTweets :: FilePath -> IO (V.Vector Tweet)
+allExistingTweets outputDir = do
+    existingFiles <- getDirectoryContents outputDir :: IO [FilePath]
+    let existingFilePaths = map (outputDir </>) existingFiles
+    csvByteStrings <- mapM getByteString existingFilePaths :: IO [LBS.ByteString]
+    existingTweetsList <- mapM getExistingTweets csvByteStrings :: IO [V.Vector Tweet]
+    return $ V.concat existingTweetsList
+
 -- |Save all tweets for a given company.
 saveCompanyTweets :: Company -> IO ()
 saveCompanyTweets company = do
@@ -243,12 +251,4 @@ saveCompanyTweets company = do
     let outputDir = cd </> "output/" </> view _ticker company
     createDirectoryIfMissing True outputDir
     let searchTerms = ["$" ++ view _ticker company, view _name company, view _hashtag company, "#" ++ view _hashtag company, "@" ++ view _handle company]
-    existingFiles <- getDirectoryContents outputDir :: IO [FilePath]
-    let existingFilePaths = map (outputDir </>) existingFiles
-    csvByteStrings <- mapM getByteString existingFilePaths :: IO [LBS.ByteString]
-    existingTweetsList <- mapM getExistingTweets csvByteStrings :: IO [V.Vector Tweet]
-    let existingTweets = V.concat existingTweetsList :: V.Vector Tweet
-    let uniqueIDs = uniqueTweetIDs existingTweets
-    print $ show (length existingTweets) ++ " tweets already collected"
-    print $ show (length uniqueIDs) ++ " unique IDs already collected"
-    mapM_ (saveYearTweets outputDir uniqueIDs) searchTerms
+    mapM_ (saveYearTweets outputDir) searchTerms
