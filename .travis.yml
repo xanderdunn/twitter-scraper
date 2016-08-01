@@ -18,7 +18,9 @@ addons:
     - hvr-ghc
     packages:
     - ghc-7.10.3
-    - hlint
+
+install:
+    - stack install hlint
 
 script:
     - hlint ./src
