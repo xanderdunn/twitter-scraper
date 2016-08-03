@@ -15,7 +15,7 @@ import Control.Lens hiding (element) -- Consider using microlens or fclabels
 import Data.Aeson
 import Network.Wreq
 
-data TweetJSON = TweetJSON {__itemsHTML :: Text} deriving Show
+data TweetJSON = TweetJSON {__itemsHTML :: Text} deriving (Show, Eq)
 makeLenses ''TweetJSON
 
 instance FromJSON TweetJSON where

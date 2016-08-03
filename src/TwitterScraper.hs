@@ -3,7 +3,6 @@
 -- TODO: Doing too much in this file.
 
 module TwitterScraper (
-outputFilePath,
 getByteString,
 startDay,
 twitterSearchURL,
@@ -41,15 +40,15 @@ import TweetJSON (TweetJSON, scrapeJSONSearchURL, _itemsHTML)
 import Company
 
 -- |The Twitter search URL for a given search term and day
-twitterSearchURL :: String -> Day -> String
+twitterSearchURL :: URL -> Day -> URL
 twitterSearchURL searchTerm day = "https://twitter.com/search?q=\"" ++ escapedSearchTerm ++ "\"%20lang%3Aen%20since%3A" ++ showGregorian day ++"%20until%3A" ++ showGregorian(addDays 1 day) ++ "&src=typd"
     where escapedSearchTerm = replace " " "%20" searchTerm
 
 -- |The Twitter JSON response URLs for all search results beyond the first page
-twitterJSONURL :: String -> Day -> Integer -> Integer -> String
+twitterJSONURL :: URL -> Day -> Integer -> Integer -> URL
 twitterJSONURL searchTerm day tweetMax tweetMin = "https://twitter.com/i/search/timeline?vertical=news&q=" ++ searchTerm ++ "%20lang%3Aen%20since%3A" ++ showGregorian day ++ "%20until%3A" ++ showGregorian(addDays 1 day) ++ "&src=typd&include_available_features=1&include_entities=1&max_position=TWEET-" ++ show tweetMin ++ "-" ++ show tweetMax ++ "-BD1UO2FFu9QAAAAAAAAETAAAAAcAAAASAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&reset_error_state=false"
 
-data Tweet = Tweet { __unique :: Integer, __author :: T.Text, __location :: T.Text, __retweets :: Int, __likes :: Int, __body :: T.Text, __date :: T.Text } deriving (Show)
+data Tweet = Tweet { __unique :: Integer, __author :: T.Text, __location :: T.Text, __retweets :: Int, __likes :: Int, __body :: T.Text, __date :: T.Text } deriving (Show, Eq)
 makeLenses ''Tweet
 
 instance ToRecord Tweet where
@@ -73,7 +72,7 @@ tweetMinMax tweets = (minID, maxID)
           maxID = view _unique headTweet
           minID = view _unique (V.last tweets)
 
-scrapeSearchURL :: String -> IO (Maybe [Tweet])
+scrapeSearchURL :: URL -> IO (Maybe [Tweet])
 scrapeSearchURL url = scrapeURL url tweetScraper
 
 -- TODO: Surely these can be generalized rather than duplication for Int, Integer?
@@ -155,9 +154,6 @@ completeFile path = renameFile path (completeFilePath path)
 
 completeFilePath :: FilePath -> FilePath
 completeFilePath path = dropExtension path ++ "_complete.csv"
-
-outputFilePath :: String -> FilePath -> FilePath
-outputFilePath searchTerm currentDirectory = currentDirectory </> "output" </> searchTerm ++ ".csv"
 
 -- |Get contents of file as a Lazy ByteString, return empty Lazy ByteString if the file does not exist
 getByteString :: FilePath -> IO LBS.ByteString

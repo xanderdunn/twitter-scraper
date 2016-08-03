@@ -19,7 +19,7 @@ import qualified Data.Vector as V
 import Control.Lens hiding (element) -- Consider using microlens or fclabels
 import Data.Csv
 
-data Company = Company {__ticker :: String, __name :: String, __website :: String, __handle :: String, __hashtag :: String} deriving Show
+data Company = Company {__ticker :: String, __name :: String, __website :: String, __handle :: String, __hashtag :: String} deriving (Show, Eq)
 makeLenses ''Company
 
 csvToCompanies :: LBS.ByteString -> Either String (V.Vector Company)
