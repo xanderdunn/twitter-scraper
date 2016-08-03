@@ -10,7 +10,7 @@ main = do
     cd <- getCurrentDirectory
     createDirectoryIfMissing True (cd </> "output/")
     let searchTerm = "tesla"
-    let ofp = currentDirectory </> "output" </> searchTerm ++ ".csv"
+    let ofp = cd </> "output" </> searchTerm ++ ".csv"
     csvByteString <- getByteString ofp
     existingTweets <- getExistingTweets csvByteString
     let day = startDay existingTweets
