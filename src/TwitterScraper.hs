@@ -220,8 +220,8 @@ saveYearTweets outputDir searchTerm = do
     let uniqueIDs = uniqueTweetIDs searchTermsExistingTweets
     let outputPath = outputDir </> (searchTerm ++ ".csv")
     putStrLn $ "\nScraping \"" ++ searchTerm ++ "\" to " ++ outputPath
-    putStrLn $ show (length searchTermsExistingTweets) ++ " tweets already collected"
-    putStrLn $ show (length uniqueIDs) ++ " unique IDs already collected"
+    putStrLn $ show (length searchTermsExistingTweets) ++ " tweets already collected for this company"
+    putStrLn $ show (length uniqueIDs) ++ " unique IDs already collected for this company"
     csvByteString <- getByteString outputPath
     existingTweets <- getExistingTweets csvByteString
     let day = startDay existingTweets
