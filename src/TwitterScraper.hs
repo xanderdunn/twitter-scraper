@@ -241,11 +241,18 @@ allExistingTweets outputDir = do
     existingTweetsList <- mapM getExistingTweets csvByteStrings :: IO [V.Vector Tweet]
     return $ V.concat existingTweetsList
 
+companySearchTerms :: Company -> [String]
+companySearchTerms company = ["$" ++ view _ticker company, view _name company] ++ hashtagList ++ handleList
+    where companyHashtag = view _hashtag company
+          companyHandle = view _handle company
+          hashtagList = if not (null companyHashtag) then [companyHashtag, "#" ++ companyHashtag] else []
+          handleList = ["@" ++ companyHandle | not (null companyHandle)]
+
 -- |Save all tweets for a given company.
 saveCompanyTweets :: Company -> IO ()
 saveCompanyTweets company = do
     cd <- getCurrentDirectory
     let outputDir = cd </> "output/" </> view _ticker company
     createDirectoryIfMissing True outputDir
-    let searchTerms = ["$" ++ view _ticker company, view _name company, view _hashtag company, "#" ++ view _hashtag company, "@" ++ view _handle company]
+    let searchTerms = companySearchTerms company
     mapM_ (saveYearTweets outputDir) searchTerms
